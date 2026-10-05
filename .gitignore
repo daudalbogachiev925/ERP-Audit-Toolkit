@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+config_dump/
+report.html
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
