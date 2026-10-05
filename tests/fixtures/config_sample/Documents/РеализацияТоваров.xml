@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" name="РеализацияТоваров" uuid="b1b2c3d4-1111-2222-3333-444455556667">
+    <Document uuid="b1b2c3d4-1111-2222-3333-444455556667">
+        <Name>РеализацияТоваров</Name>
+        <Type>Document</Type>
+        <Attribute>
+            <Type>Catalog.Контрагенты</Type>
+        </Attribute>
+    </Document>
+</MetaDataObject>
