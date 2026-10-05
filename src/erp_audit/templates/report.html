@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ERP Audit Report</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #f5f5f7;
+            margin: 0;
+            padding: 40px 20px;
+            color: #1d1d1f;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-weight: 600; }
+        h2 { margin-top: 0; }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .metric .value { font-size: 32px; font-weight: 700; color: #0071e3; }
+        .metric .label { color: #666; font-size: 13px; margin-top: 4px; }
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #fafafa; font-weight: 600; }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.high { background: #ff3b30; color: white; }
+        .badge.medium { background: #ffa500; color: white; }
+        .badge.low { background: #34c759; color: white; }
+        .warning { color: #ff3b30; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>ERP Audit Report</h1>
+    <p>Сгенерирован: {{ generated_at }}</p>
+
+    <div class="metrics">
+        <div class="metric">
+            <div class="value">{{ total_objects }}</div>
+            <div class="label">Объектов метаданных</div>
+        </div>
+        <div class="metric">
+            <div class="value">{{ total_edges }}</div>
+            <div class="label">Связей между объектами</div>
+        </div>
+        <div class="metric">
+            <div class="value">{{ total_bsl_files }}</div>
+            <div class="label">BSL-файлов</div>
+        </div>
+        <div class="metric">
+            <div class="value">{{ total_lines }}</div>
+            <div class="label">Строк кода</div>
+        </div>
+        <div class="metric">
+            <div class="value">{{ total_procedures }}</div>
+            <div class="label">Процедур и функций</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Объекты по типам</h2>
+        <div id="types-chart"></div>
+    </div>
+
+    <div class="card">
+        <h2>Топ-20 самых связанных объектов</h2>
+        <table>
+            <thead><tr><th>Объект</th><th>Входящих ссылок</th></tr></thead>
+            <tbody>
+            {% for name, deg in hubs %}
+                <tr><td>{{ name }}</td><td>{{ deg }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Объекты-сироты <span class="warning">({{ orphans_total }})</span></h2>
+        <p>На эти объекты никто не ссылается — кандидаты на удаление или неиспользуемый код.</p>
+        {% if orphans %}
+        <table>
+            <thead><tr><th>#</th><th>Объект</th></tr></thead>
+            <tbody>
+            {% for name in orphans %}
+                <tr><td>{{ loop.index }}</td><td>{{ name }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Сирот нет.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Циклические зависимости <span class="warning">({{ cycles_total }})</span></h2>
+        {% if cycles %}
+        <table>
+            <thead><tr><th>#</th><th>Цикл</th></tr></thead>
+            <tbody>
+            {% for cycle in cycles %}
+                <tr><td>{{ loop.index }}</td><td>{{ cycle | join(" → ") }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Циклов не обнаружено.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Топ-30 самых больших BSL-модулей</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Файл</th>
+                    <th>Строк</th>
+                    <th>Процедур</th>
+                    <th>Условий</th>
+                    <th>Циклов</th>
+                    <th>Сложность</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for m in bsl_metrics %}
+                <tr>
+                    <td>{{ m.path.split("/")[-1].split("\\")[-1] }}</td>
+                    <td>{{ m.total_lines }}</td>
+                    <td>{{ m.procedures }}</td>
+                    <td>{{ m.if_count }}</td>
+                    <td>{{ m.loop_count }}</td>
+                    <td><span class="badge {{ m.complexity_level }}">{{ m.complexity_level }}</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const types = {{ types_json | safe }};
+    const hubs = {{ hubs_json | safe }};
+
+    Plotly.newPlot('types-chart', [{
+        labels: Object.keys(types),
+        values: Object.values(types),
+        type: 'pie',
+    }], { height: 400, margin: { t: 20 } });
+</script>
+</body>
+</html>
